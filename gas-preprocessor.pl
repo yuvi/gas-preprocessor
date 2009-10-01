@@ -61,7 +61,7 @@ while (<ASMFILE>) {
         $arglist =~ s/,/ /g;
 
         my @args = split(/[\s]+/, $arglist);
-        foreach my $i (0 .. $#{@args}) {
+        foreach my $i (0 .. $#args) {
             my @argpair = split(/=/, $args[$i]);
             $macro_args{$current_macro}[$i] = $argpair[0];
             $argpair[0] =~ s/:vararg$//;
@@ -110,7 +110,7 @@ sub expand_macros {
         }
 
         # construct hashtable of text to replace
-        foreach my $i (0 .. $#{@args}) {
+        foreach my $i (0 .. $#args) {
             my $argname = $macro_args{$macro}[$i];
 
             if ($args[$i] =~ m/=/) {
