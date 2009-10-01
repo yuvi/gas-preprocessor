@@ -47,7 +47,8 @@ while (<ASMFILE>) {
     s/\.size/@.size/x;
 
     # the syntax for these is a little different
-    s/\.global\s+(.*)/.globl _$1\n_$1:/x;
+    # XXX: the unprefixed symbol exported only because of ff_fft_calc_neon in mdct_neon.S
+    s/\.global\s+(.*)/.globl _$1\n_$1:\n.globl $1/x;
     s/\.rodata/.const_data/x;
     s/\.section/.section,/x;
     s/\.fpu\s+neon/.syntax unified/x; # Allows UAL for VFP, but still doesn't assemble NEON
