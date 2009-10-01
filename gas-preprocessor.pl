@@ -143,10 +143,12 @@ sub expand_macros {
         # apply replacements as regex
         foreach (@{$macro_lines{$macro}}) {
             my $macro_line = $_;
-            $macro_line =~ s/\\\(\)//g;     # remove \()
-            foreach (keys %replacements) {
+            # do replacements by longest first, this avoids wrong replacement
+            # when argument names are subsets of each other
+            foreach (reverse sort {length $a <=> length $b} keys %replacements) {
                 $macro_line =~ s/\\$_/$replacements{$_}/g;
             }
+            $macro_line =~ s/\\\(\)//g;     # remove \()
             expand_macros($macro_line);
         }
     } else {
