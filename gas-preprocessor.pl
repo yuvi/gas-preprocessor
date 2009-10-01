@@ -52,6 +52,10 @@ while (<ASMFILE>) {
     s/\.fpu\s+neon/.syntax unified/x; # Allows UAL for VFP, but still doesn't assemble NEON
     s/\.int/.long/x;
 
+    # apple's gas can't handle -.-8 addressing
+    s/add\s+(\S+),\s*pc,\s*\#\((\S+)-.-8\)/adr $1, $2/x;
+    s/ldr\s+(\S+),\s*\[pc,\s*\#\((\S+)-.-8\)\]/ldr $1, $2/x;
+
     # macros creating macros is not handled (is that valid?)
     if (/\.macro\s+([\d\w\.]+)\s*(.*)/) {
         $current_macro = $1;
