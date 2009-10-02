@@ -71,7 +71,7 @@ while (<ASMFILE>) {
         my $arglist = $2;
         $arglist =~ s/,/ /g;
 
-        my @args = split(/[\s]+/, $arglist);
+        my @args = split(/\s+/, $arglist);
         foreach my $i (0 .. $#args) {
             my @argpair = split(/=/, $args[$i]);
             $macro_args{$current_macro}[$i] = $argpair[0];
@@ -177,19 +177,19 @@ my $literal_num = 0;
 foreach my $line (@pass1_lines) {
     # textual comparison .if
     # this assumes nothing else on the same line
-    if ($line =~ /\.ifnb[\s]+(.*)/) {
+    if ($line =~ /\.ifnb\s+(.*)/) {
         if ($1) {
             $line = ".if 1\n";
         } else {
             $line = ".if 0\n";
         }
-    } elsif ($line =~ /\.ifb[\s]+(.*)/) {
+    } elsif ($line =~ /\.ifb\s+(.*)/) {
         if ($1) {
             $line = ".if 0\n";
         } else {
             $line = ".if 1\n";
         }
-    } elsif ($line =~ /\.ifc[\s]+(.*)[\s]*,[\s]*(.*)/) {
+    } elsif ($line =~ /\.ifc\s+(.*)\s*,\s*(.*)/) {
         if ($1 eq $2) {
             $line = ".if 1\n";
         } else {
@@ -198,7 +198,7 @@ foreach my $line (@pass1_lines) {
     }
 
     # handle .previous (only with regard to .section not .subsection)
-    if ($line =~ /\.section/ || $line =~ /\.text/ || $line =~ /\.const_data/) {
+    if ($line =~ /\.(section|text|const_data)/) {
         push(@sections, $line);
     } elsif ($line =~ /\.previous/) {
         if (!$sections[-2]) {
