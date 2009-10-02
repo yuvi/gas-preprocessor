@@ -47,17 +47,12 @@ while (<ASMFILE>) {
     s/\.size/@.size/x;
 
     # the syntax for these is a little different
-    s/\.global\s+(.*)/.globl _$1\n_$1:/x;
+    s/\.global/.globl/x;
     s/\.rodata/.const_data/x;
     s/\.section/.section,/x;
     s/\.fpu\s+neon/.syntax unified/x; # Allows UAL for VFP, but still doesn't assemble NEON
     s/\.int/.long/x;
     s/\.float/.single/x;
-
-    # add underscore to references to public symbols (for ffmpeg-only)
-    s/b(.*)\sff_/b$1 _ff_/x;
-    s/movrel(.*)\sff_/movrel$1 _ff_/x;
-    s/adr(.*)\sff_/adr$1 _ff_/x;
 
     # apple's gas can't handle -.-8 addressing
     s/add\s+(\S+),\s*pc,\s*\#\((\S+)-\.-8\)/adr $1, $2/x;
