@@ -58,6 +58,11 @@ while (<ASMFILE>) {
     s/add\s+(\S+),\s*pc,\s*\#\((\S+)-\.-8\)/adr $1, $2/x;
     s/ldr\s+(\S+),\s*\[pc,\s*\#\((\S+)-\.-8\)\]/ldr $1, $2/x;
 
+    # catch unknown section names
+    if (/.section(.*)/) {
+        die ".section$1 unsupported; figure out the mach-o section name and add it";
+    }
+
     # macros creating macros is not handled (is that valid?)
     if (/\.macro\s+([\d\w\.]+)\s*(.*)/) {
         $current_macro = $1;
