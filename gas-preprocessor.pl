@@ -10,8 +10,7 @@ use strict;
 # implements the subset of the gas preprocessor used by x264 and ffmpeg
 # that isn't supported by Apple's gas.
 
-# FIXME: this leaves .e files around
-# also doesn't work if the path has spaces, but oh well...
+# FIXME: doesn't work if the path has spaces, but oh well...
 my $gcc_cmd = join(' ', @ARGV);
 if ($gcc_cmd =~ /\S+\.c/) {
     # we don't appear to be working on an asm file, so pass it off to gcc as-is
@@ -20,12 +19,10 @@ if ($gcc_cmd =~ /\S+\.c/) {
 }
 
 my $preprocess_c_cmd = "$gcc_cmd -E";
-$preprocess_c_cmd =~ s/(\S+)\.o/$1.e/g;
-my $preprocessed_file = "$1.e";
-$gcc_cmd =~ s/\S+\.S/-x assembler $preprocessed_file/g;
+$preprocess_c_cmd =~ s/\S+\.o/-/g;
+$gcc_cmd =~ s/\S+\.S/-x assembler -/g;
 
-system $preprocess_c_cmd || die 'Error preprocessing C defines';
-open(ASMFILE, "+<", "$preprocessed_file") || die "Error opening $preprocessed_file";
+open(ASMFILE, "-|", $preprocess_c_cmd) || die "Error running preprocessor";
 
 my $current_macro = '';
 my %macro_lines;
@@ -161,8 +158,8 @@ sub expand_macros {
     }
 }
 
-close(ASMFILE);
-open(ASMFILE, ">", $preprocessed_file);
+close(ASMFILE) or exit 1;
+open(ASMFILE, "|-", $gcc_cmd) or die "Error running assembler";
 
 my @sections;
 my $num_repts;
@@ -250,7 +247,4 @@ foreach my $literal (keys %literal_labels) {
     print ASMFILE "$literal_labels{$literal}:\n .word $literal\n";
 }
 
-close(ASMFILE);
-
-exec $gcc_cmd;
-die "Couldn't execute $gcc_cmd";
+close(ASMFILE) or exit 1;
