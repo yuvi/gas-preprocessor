@@ -48,8 +48,8 @@ while (<ASMFILE>) {
 
     # the syntax for these is a little different
     s/\.global/.globl/x;
-    s/\.rodata/.const_data/x;
-    s/\.section/.section,/x;
+    # also catch .section .rodata since the equivalent to .const_data is .section __DATA,__const
+    s/(.*)\.rodata/.const_data/x;
     s/\.fpu\s+neon/.syntax unified/x; # Allows UAL for VFP, but still doesn't assemble NEON
     s/\.int/.long/x;
     s/\.float/.single/x;
