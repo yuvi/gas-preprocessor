@@ -40,7 +40,6 @@ while (<ASMFILE>) {
     s/\.func/@.func/x;
     s/\.endfunc/@.endfunc/x;
     s/\.ltorg/@.ltorg/x;
-    s/\.eabi_attribute/@.eabi_attribute/x;
     s/\.size/@.size/x;
     s/\.fpu/@.fpu/x;
 
