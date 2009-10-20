@@ -12,15 +12,21 @@ use strict;
 
 # FIXME: doesn't work if the path has spaces, but oh well...
 my $gcc_cmd = join(' ', @ARGV);
+my $preprocess_c_cmd;
+
 if ($gcc_cmd =~ /\S+\.c/) {
-    # we don't appear to be working on an asm file, so pass it off to gcc as-is
-    exec $gcc_cmd;
-    die "Couldn't execute $gcc_cmd";
+    # C file (inline asm?) - compile
+    $preprocess_c_cmd = "$gcc_cmd -S";
+    $gcc_cmd =~ s/\S+\.c/-x assembler -/g;
+} elsif ($gcc_cmd =~ /\S+\.S/) {
+    # asm file, just do C preprocessor
+    $preprocess_c_cmd = "$gcc_cmd -E";
+    $gcc_cmd =~ s/\S+\.S/-x assembler -/g;
+} else {
+    die "Unrecognized input filetype";
 }
 
-my $preprocess_c_cmd = "$gcc_cmd -E";
 $preprocess_c_cmd =~ s/\S+\.o/-/g;
-$gcc_cmd =~ s/\S+\.S/-x assembler -/g;
 
 open(ASMFILE, "-|", $preprocess_c_cmd) || die "Error running preprocessor";
 
@@ -50,9 +56,9 @@ while (<ASMFILE>) {
     s/\.int/.long/x;
     s/\.float/.single/x;
 
-    # catch unknown section names
-    if (/.section(.*)/) {
-        die ".section$1 unsupported; figure out the mach-o section name and add it";
+    # catch unknown section names that aren't mach-o style (with a comma)
+    if (/.section ([^,]*)$/) {
+        die ".section $1 unsupported; figure out the mach-o section name and add it";
     }
 
     # macros creating macros is not handled (is that valid?)
