@@ -222,6 +222,10 @@ foreach my $line (@pass1_lines) {
         %literal_labels = ();
     }
 
+    # @l -> lo16()  @ha -> ha16()
+    $line =~ s/,\s+([^,]+)\@l(\s)/, lo16($1)$2/g;
+    $line =~ s/,\s+([^,]+)\@ha(\s)/, ha16($1)$2/g;
+
     if ($line =~ /\.rept\s+(.*)/) {
         $num_repts = $1;
         $rept_lines = "\n";
