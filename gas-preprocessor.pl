@@ -235,6 +235,7 @@ foreach my $line (@pass1_lines) {
         if ($num_repts =~ s/(\.\w+.*)//) {
             $rept_lines .= "$1\n";
         }
+        $num_repts = eval($num_repts);
     } elsif ($line =~ /\.endr/) {
         for (1 .. $num_repts) {
             print ASMFILE $rept_lines;
