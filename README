@@ -13,7 +13,7 @@ If deploying to all generations, it's recommended to do separate out-of-tree
 builds for each architecture, then lipo together the resulting libs. For
 instance, assuming separate builds in armv6 and armv7:
 
-lipo -create -arch armv6 armv6/libavcodec/libavcodec.a -arch armv7 armv7/libavcodec/libavcodec -output universal/libavcodec.a
+lipo -create -arch armv6 armv6/libavcodec/libavcodec.a -arch armv7 armv7/libavcodec/libavcodec.a -output universal/libavcodec.a
 
 and similar for each library. Then in XCode, make sure to build for both armv6
 and armv7. If you only care about one generation (since the armv6 devices are
