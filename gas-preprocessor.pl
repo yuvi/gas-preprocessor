@@ -28,6 +28,7 @@ if (grep /\.c$/, @gcc_cmd) {
 open(ASMFILE, "-|", @preprocess_c_cmd) || die "Error running preprocessor";
 
 my $current_macro = '';
+my $macro_level = 0;
 my %macro_lines;
 my %macro_args;
 my %macro_args_default;
@@ -58,37 +59,67 @@ while (<ASMFILE>) {
         die ".section $1 unsupported; figure out the mach-o section name and add it";
     }
 
-    # macros creating macros is not handled (is that valid?)
-    if (/\.macro\s+([\d\w\.]+)\s*(.*)/) {
-        $current_macro = $1;
+    parse_line($_);
+}
 
-        # commas in the argument list are optional, so only use whitespace as the separator
-        my $arglist = $2;
-        $arglist =~ s/,/ /g;
+sub parse_line {
+    my $line = @_[0];
 
-        my @args = split(/\s+/, $arglist);
-        foreach my $i (0 .. $#args) {
-            my @argpair = split(/=/, $args[$i]);
-            $macro_args{$current_macro}[$i] = $argpair[0];
-            $argpair[0] =~ s/:vararg$//;
-            $macro_args_default{$current_macro}{$argpair[0]} = $argpair[1];
+    if (/\.macro/) {
+        $macro_level++;
+        if ($macro_level > 1 && !$current_macro) {
+            die "nested macros but we don't have master macro";
         }
-        # ensure %macro_lines has the macro name added as a key
-        $macro_lines{$current_macro} = [];
     } elsif (/\.endm/) {
-        if (!$current_macro) {
-            die "ERROR: .endm without .macro";
+        $macro_level--;
+        if ($macro_level < 0) {
+            die "unmatched .endm";
+        } elsif ($macro_level == 0) {
+            $current_macro = '';
+            return;
         }
-        $current_macro = '';
-    } elsif ($current_macro) {
-        push(@{$macro_lines{$current_macro}}, $_);
+    }
+
+    if ($macro_level > 1) {
+        push(@{$macro_lines{$current_macro}}, $line);
+    } elsif ($macro_level == 0) {
+        expand_macros($line);
     } else {
-        expand_macros($_);
+        if (/\.macro\s+([\d\w\.]+)\s*(.*)/) {
+            $current_macro = $1;
+
+            # commas in the argument list are optional, so only use whitespace as the separator
+            my $arglist = $2;
+            $arglist =~ s/,/ /g;
+
+            my @args = split(/\s+/, $arglist);
+            foreach my $i (0 .. $#args) {
+                my @argpair = split(/=/, $args[$i]);
+                $macro_args{$current_macro}[$i] = $argpair[0];
+                $argpair[0] =~ s/:vararg$//;
+                $macro_args_default{$current_macro}{$argpair[0]} = $argpair[1];
+            }
+            # ensure %macro_lines has the macro name added as a key
+            $macro_lines{$current_macro} = [];
+
+        } elsif ($current_macro) {
+            push(@{$macro_lines{$current_macro}}, $line);
+        } else {
+            die "macro level without a macro name";
+        }
     }
 }
 
 sub expand_macros {
     my $line = @_[0];
+
+    if (/\.purgem\s+([\d\w\.]+)/) {
+        delete $macro_lines{$1};
+        delete $macro_args{$1};
+        delete $macro_args_default{$1};
+        return;
+    }
+
     if ($line =~ /(\S+:|)\s*([\w\d\.]+)\s*(.*)/ && exists $macro_lines{$2}) {
         push(@pass1_lines, $1);
         my $macro = $2;
@@ -149,7 +180,7 @@ sub expand_macros {
                 $macro_line =~ s/\\$_/$replacements{$_}/g;
             }
             $macro_line =~ s/\\\(\)//g;     # remove \()
-            expand_macros($macro_line);
+            parse_line($macro_line);
         }
     } else {
         push(@pass1_lines, $line);
