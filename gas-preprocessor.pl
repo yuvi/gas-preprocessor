@@ -16,13 +16,13 @@ my @preprocess_c_cmd;
 if (grep /\.c$/, @gcc_cmd) {
     # C file (inline asm?) - compile
     @preprocess_c_cmd = (@gcc_cmd, "-S");
-} elsif (grep /\.S$/, @gcc_cmd) {
+} elsif (grep /\.[sS]$/, @gcc_cmd) {
     # asm file, just do C preprocessor
     @preprocess_c_cmd = (@gcc_cmd, "-E");
 } else {
     die "Unrecognized input filetype";
 }
-@gcc_cmd = map { /\.[cS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
+@gcc_cmd = map { /\.[csS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
 @preprocess_c_cmd = map { /\.o$/ ? "-" : $_ } @preprocess_c_cmd;
 
 open(ASMFILE, "-|", @preprocess_c_cmd) || die "Error running preprocessor";
