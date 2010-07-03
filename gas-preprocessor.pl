@@ -113,6 +113,29 @@ sub parse_line {
 sub expand_macros {
     my $line = @_[0];
 
+    # handle .if directives; apple's assembler doesn't support important non-basic ones
+    if ($line =~ /\.if(n?)([a-z]*)\s+(.*)/) {
+        my $result = $1 eq "n";
+        my $type   = $2;
+        my $expr   = $3;
+
+        if ($type eq "b") {
+            $expr =~ s/\s//g;
+            $result ^= $expr eq "";
+        } elsif ($type eq "c") {
+            if ($expr =~ /(.*)\s*,\s*(.*)/) {
+                $result ^= $1 eq $2;
+            } else {
+                die "argument to .ifc not recognized";
+            }
+        } elsif ($type eq "") {
+            $result ^= eval($expr) != 0;
+        } else {
+            die "unhandled .if varient";
+        }
+        $line = ".if $result\n";
+    }
+
     if (/\.purgem\s+([\d\w\.]+)/) {
         delete $macro_lines{$1};
         delete $macro_args{$1};
@@ -201,28 +224,6 @@ my $literal_num = 0;
 # NOTE: since we don't implement a proper parser, using .rept with a
 # variable assigned from .set is not supported
 foreach my $line (@pass1_lines) {
-    # textual comparison .if
-    # this assumes nothing else on the same line
-    if ($line =~ /\.ifnb\s+(.*)/) {
-        if ($1) {
-            $line = ".if 1\n";
-        } else {
-            $line = ".if 0\n";
-        }
-    } elsif ($line =~ /\.ifb\s+(.*)/) {
-        if ($1) {
-            $line = ".if 0\n";
-        } else {
-            $line = ".if 1\n";
-        }
-    } elsif ($line =~ /\.ifc\s+(.*)\s*,\s*(.*)/) {
-        if ($1 eq $2) {
-            $line = ".if 1\n";
-        } else {
-            $line = ".if 0\n";
-        }
-    }
-
     # handle .previous (only with regard to .section not .subsection)
     if ($line =~ /\.(section|text|const_data)/) {
         push(@sections, $line);
