@@ -39,6 +39,9 @@ my @pass1_lines;
 # note that the handling of arguments is probably overly permissive vs. gas
 # but it should be the same for valid cases
 while (<ASMFILE>) {
+    # remove all comments (to avoid interfering with evaluating directives)
+    s/@.*//x;
+
     # comment out unsupported directives
     s/\.type/@.type/x;
     s/\.func/@.func/x;
