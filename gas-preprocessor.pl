@@ -34,6 +34,7 @@ my %macro_args;
 my %macro_args_default;
 
 my @pass1_lines;
+my @ifstack;
 
 # pass 1: parse .macro
 # note that the handling of arguments is probably overly permissive vs. gas
@@ -67,6 +68,25 @@ while (<ASMFILE>) {
 
 sub parse_line {
     my $line = @_[0];
+
+    # evaluate .if blocks
+    if (scalar(@ifstack)) {
+        if (/\.endif/) {
+            pop(@ifstack);
+            return;
+        } elsif (/\.else/) {
+            $ifstack[-1] = !$ifstack[-1];
+            return;
+        } elsif (/\.elsif\s+(.*)/) {
+            $ifstack[-1] = eval($1);
+            return;
+        }
+
+        # discard lines in false .if blocks
+        if (!$ifstack[-1]) {
+            return;
+        }
+    }
 
     if (/\.macro/) {
         $macro_level++;
@@ -117,6 +137,7 @@ sub expand_macros {
     my $line = @_[0];
 
     # handle .if directives; apple's assembler doesn't support important non-basic ones
+    # evaluating them is also needed to handle recursive macros
     if ($line =~ /\.if(n?)([a-z]*)\s+(.*)/) {
         my $result = $1 eq "n";
         my $type   = $2;
@@ -136,7 +157,8 @@ sub expand_macros {
         } else {
             die "unhandled .if varient";
         }
-        $line = ".if $result\n";
+        push (@ifstack, $result);
+        return;
     }
 
     if (/\.purgem\s+([\d\w\.]+)/) {
