@@ -25,6 +25,16 @@ if (grep /\.c$/, @gcc_cmd) {
 @gcc_cmd = map { /\.[csS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
 @preprocess_c_cmd = map { /\.o$/ ? "-" : $_ } @preprocess_c_cmd;
 
+my $comm;
+
+if      ($gcc_cmd[0] =~ /arm/) {
+    $comm = '@';
+} elsif ($gcc_cmd[0] =~ /powerpc|ppc/) {
+    $comm = '#';
+} else {
+    die "Unable to identify target architecture";
+}
+
 open(ASMFILE, "-|", @preprocess_c_cmd) || die "Error running preprocessor";
 
 my $current_macro = '';
@@ -41,15 +51,15 @@ my @ifstack;
 # but it should be the same for valid cases
 while (<ASMFILE>) {
     # remove all comments (to avoid interfering with evaluating directives)
-    s/@.*//x;
+    s/$comm.*//x;
 
     # comment out unsupported directives
-    s/\.type/@.type/x;
-    s/\.func/@.func/x;
-    s/\.endfunc/@.endfunc/x;
-    s/\.ltorg/@.ltorg/x;
-    s/\.size/@.size/x;
-    s/\.fpu/@.fpu/x;
+    s/\.type/$comm.type/x;
+    s/\.func/$comm.func/x;
+    s/\.endfunc/$comm.endfunc/x;
+    s/\.ltorg/$comm.ltorg/x;
+    s/\.size/$comm.size/x;
+    s/\.fpu/$comm.fpu/x;
 
     # the syntax for these is a little different
     s/\.global/.globl/x;
