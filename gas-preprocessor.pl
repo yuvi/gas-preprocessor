@@ -287,8 +287,8 @@ foreach my $line (@pass1_lines) {
     }
 
     # @l -> lo16()  @ha -> ha16()
-    $line =~ s/,\s+([^,]+)\@l(\s)/, lo16($1)$2/g;
-    $line =~ s/,\s+([^,]+)\@ha(\s)/, ha16($1)$2/g;
+    $line =~ s/,\s+([^,]+)\@l\b/, lo16($1)/g;
+    $line =~ s/,\s+([^,]+)\@ha\b/, ha16($1)/g;
 
     if ($line =~ /\.rept\s+(.*)/) {
         $num_repts = $1;
