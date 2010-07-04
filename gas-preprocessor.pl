@@ -35,6 +35,9 @@ if      ($gcc_cmd[0] =~ /arm/) {
     die "Unable to identify target architecture";
 }
 
+my %ppc_spr = (ctr    => 9,
+               vrsave => 256);
+
 open(ASMFILE, "-|", @preprocess_c_cmd) || die "Error running preprocessor";
 
 my $current_macro = '';
@@ -289,6 +292,15 @@ foreach my $line (@pass1_lines) {
     # @l -> lo16()  @ha -> ha16()
     $line =~ s/,\s+([^,]+)\@l\b/, lo16($1)/g;
     $line =~ s/,\s+([^,]+)\@ha\b/, ha16($1)/g;
+
+    # move to/from SPR
+    if ($line =~ /(\s+)(m[ft])([a-z]+)\s+(\w+)/ and exists $ppc_spr{$3}) {
+        if ($2 eq 'mt') {
+            $line = "$1${2}spr $ppc_spr{$3}, $4\n";
+        } else {
+            $line = "$1${2}spr $4, $ppc_spr{$3}\n";
+        }
+    }
 
     if ($line =~ /\.rept\s+(.*)/) {
         $num_repts = $1;
