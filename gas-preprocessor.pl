@@ -27,11 +27,25 @@ if (grep /\.c$/, @gcc_cmd) {
 
 my $comm;
 
+# detect architecture from gcc binary name
 if      ($gcc_cmd[0] =~ /arm/) {
     $comm = '@';
 } elsif ($gcc_cmd[0] =~ /powerpc|ppc/) {
     $comm = '#';
-} else {
+}
+
+# look for -arch flag
+foreach my $i (1 .. $#gcc_cmd-1) {
+    if ($gcc_cmd[$i] eq "-arch") {
+        if ($gcc_cmd[$i+1] =~ /arm/) {
+            $comm = '@';
+        } elsif ($gcc_cmd[$i+1] =~ /powerpc|ppc/) {
+            $comm = '#';
+        }
+    }
+}
+
+if (!$comm) {
     die "Unable to identify target architecture";
 }
 
