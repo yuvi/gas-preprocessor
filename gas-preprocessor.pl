@@ -45,6 +45,16 @@ foreach my $i (1 .. $#gcc_cmd-1) {
     }
 }
 
+# assume we're not cross-compiling if no -arch or the binary doesn't have the arch name
+if (!$comm) {
+    my $native_arch = qx/arch/;
+    if ($native_arch =~ /arm/) {
+        $comm = '@';
+    } elsif ($native_arch =~ /powerpc|ppc/) {
+        $comm = '#';
+    }
+}
+
 if (!$comm) {
     die "Unable to identify target architecture";
 }
