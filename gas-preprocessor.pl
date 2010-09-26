@@ -111,16 +111,20 @@ sub parse_line {
         if (/\.endif/) {
             pop(@ifstack);
             return;
+        } elsif ($line =~ /\.elseif\s+(.*)/) {
+            if ($ifstack[-1] == 0) {
+                $ifstack[-1] = !!eval($1);
+            } elsif ($ifstack[-1] > 0) {
+                $ifstack[-1] = -$ifstack[-1];
+            }
+            return;
         } elsif (/\.else/) {
             $ifstack[-1] = !$ifstack[-1];
-            return;
-        } elsif (/\.elsif\s+(.*)/) {
-            $ifstack[-1] = eval($1);
             return;
         }
 
         # discard lines in false .if blocks
-        if (!$ifstack[-1]) {
+        if ($ifstack[-1] <= 0) {
             return;
         }
     }
