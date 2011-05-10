@@ -87,6 +87,8 @@ while (<ASMFILE>) {
     s/\.ltorg/$comm.ltorg/x;
     s/\.size/$comm.size/x;
     s/\.fpu/$comm.fpu/x;
+    s/\.arch/$comm.arch/x;
+    s/\.object_arch/$comm.object_arch/x;
 
     # the syntax for these is a little different
     s/\.global/.globl/x;
