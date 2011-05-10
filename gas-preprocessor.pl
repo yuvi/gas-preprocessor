@@ -103,6 +103,36 @@ while (<ASMFILE>) {
     parse_line($_);
 }
 
+sub handle_if {
+    my $line = $_[0];
+    # handle .if directives; apple's assembler doesn't support important non-basic ones
+    # evaluating them is also needed to handle recursive macros
+    if ($line =~ /\.if(n?)([a-z]*)\s+(.*)/) {
+        my $result = $1 eq "n";
+        my $type   = $2;
+        my $expr   = $3;
+
+        if ($type eq "b") {
+            $expr =~ s/\s//g;
+            $result ^= $expr eq "";
+        } elsif ($type eq "c") {
+            if ($expr =~ /(.*)\s*,\s*(.*)/) {
+                $result ^= $1 eq $2;
+            } else {
+                die "argument to .ifc not recognized";
+            }
+        } elsif ($type eq "") {
+            $result ^= eval($expr) != 0;
+        } else {
+            die "unhandled .if varient";
+        }
+        push (@ifstack, $result);
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 sub parse_line {
     my $line = @_[0];
 
@@ -121,11 +151,15 @@ sub parse_line {
         } elsif (/\.else/) {
             $ifstack[-1] = !$ifstack[-1];
             return;
+        } elsif (handle_if($line)) {
+            return;
         }
 
         # discard lines in false .if blocks
-        if ($ifstack[-1] <= 0) {
-            return;
+        foreach my $i (0 .. $#ifstack) {
+            if ($ifstack[$i] <= 0) {
+                return;
+            }
         }
     }
 
@@ -179,26 +213,7 @@ sub expand_macros {
 
     # handle .if directives; apple's assembler doesn't support important non-basic ones
     # evaluating them is also needed to handle recursive macros
-    if ($line =~ /\.if(n?)([a-z]*)\s+(.*)/) {
-        my $result = $1 eq "n";
-        my $type   = $2;
-        my $expr   = $3;
-
-        if ($type eq "b") {
-            $expr =~ s/\s//g;
-            $result ^= $expr eq "";
-        } elsif ($type eq "c") {
-            if ($expr =~ /(.*)\s*,\s*(.*)/) {
-                $result ^= $1 eq $2;
-            } else {
-                die "argument to .ifc not recognized";
-            }
-        } elsif ($type eq "") {
-            $result ^= eval($expr) != 0;
-        } else {
-            die "unhandled .if varient";
-        }
-        push (@ifstack, $result);
+    if (handle_if($line)) {
         return;
     }
 
