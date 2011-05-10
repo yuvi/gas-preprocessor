@@ -218,6 +218,9 @@ sub expand_macros {
         my @arglist = split(/,/, $3);
         my @args;
         foreach (@arglist) {
+            # allow for + and - in macro arguments
+            $_ =~ s/\s*\+\s*/+/;
+            $_ =~ s/\s*\-\s*/-/;
             my @whitespace_split = split(/\s+/, $_);
             if (!@whitespace_split) {
                 push(@args, '');
