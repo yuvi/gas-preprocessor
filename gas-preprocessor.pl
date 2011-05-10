@@ -286,6 +286,10 @@ my $rept_lines;
 my %literal_labels;     # for ldr <reg>, =<expr>
 my $literal_num = 0;
 
+my $in_irp = 0;
+my @irp_args;
+my $irp_param;
+
 # pass 2: parse .rept and .if variants
 # NOTE: since we don't implement a proper parser, using .rept with a
 # variable assigned from .set is not supported
@@ -340,11 +344,33 @@ foreach my $line (@pass1_lines) {
             $rept_lines .= "$1\n";
         }
         $num_repts = eval($num_repts);
+    } elsif ($line =~ /\.irp\s+([\d\w\.]+)\s*(.*)/) {
+        $in_irp = 1;
+        $num_repts = 1;
+        $rept_lines = "\n";
+        $irp_param = $1;
+
+        # only use whitespace as the separator
+        my $irp_arglist = $2;
+        $irp_arglist =~ s/,/ /g;
+        $irp_arglist =~ s/^\s+//;
+        @irp_args = split(/\s+/, $irp_arglist);
     } elsif ($line =~ /\.endr/) {
-        for (1 .. $num_repts) {
-            print ASMFILE $rept_lines;
+        if ($in_irp != 0) {
+            foreach my $i (@irp_args) {
+                my $line = $rept_lines;
+                $line =~ s/\\$irp_param/$i/g;
+                $line =~ s/\\\(\)//g;     # remove \()
+                print ASMFILE $line;
+            }
+        } else {
+            for (1 .. $num_repts) {
+                print ASMFILE $rept_lines;
+            }
         }
         $rept_lines = '';
+        $in_irp = 0;
+        @irp_args = '';
     } elsif ($rept_lines) {
         $rept_lines .= $line;
     } else {
