@@ -22,6 +22,19 @@ if (grep /\.c$/, @gcc_cmd) {
 } else {
     die "Unrecognized input filetype";
 }
+
+# if compiling, avoid creating an output file named '-.o'
+if ((grep /^-c$/, @gcc_cmd) && !(grep /^-o/, @gcc_cmd)) {
+    foreach my $i (@gcc_cmd) {
+        if ($i =~ /\.[csS]$/) {
+            my $outputfile = $i;
+            $outputfile =~ s/\.[csS]$/.o/;
+            push(@gcc_cmd, "-o");
+            push(@gcc_cmd, $outputfile);
+            last;
+        }
+    }
+}
 @gcc_cmd = map { /\.[csS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
 @preprocess_c_cmd = map { /\.o$/ ? "-" : $_ } @preprocess_c_cmd;
 
