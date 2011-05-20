@@ -364,6 +364,12 @@ foreach my $line (@pass1_lines) {
         }
     }
 
+    # gas stores upper and lower case names on .req, but removes only one on .unreq
+    if ($line =~ /\.unreq\s+(.*)/) {
+        $line = ".unreq " . lc($1) . "\n";
+        print ASMFILE ".unreq " . uc($1) . "\n";
+    }
+
     if ($line =~ /\.rept\s+(.*)/) {
         $num_repts = $1;
         $rept_lines = "\n";
