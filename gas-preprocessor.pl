@@ -13,6 +13,16 @@ use strict;
 my @gcc_cmd = @ARGV;
 my @preprocess_c_cmd;
 
+my $fix_unreq = $^O eq "darwin";
+
+if ($gcc_cmd[0] eq "-fix-unreq") {
+    $fix_unreq = 1;
+    shift @gcc_cmd;
+} elsif ($gcc_cmd[0] eq "-no-fix-unreq") {
+    $fix_unreq = 0;
+    shift @gcc_cmd;
+}
+
 if (grep /\.c$/, @gcc_cmd) {
     # C file (inline asm?) - compile
     @preprocess_c_cmd = (@gcc_cmd, "-S");
@@ -364,10 +374,13 @@ foreach my $line (@pass1_lines) {
         }
     }
 
-    # gas stores upper and lower case names on .req, but removes only one on .unreq
-    if ($line =~ /\.unreq\s+(.*)/) {
-        $line = ".unreq " . lc($1) . "\n";
-        print ASMFILE ".unreq " . uc($1) . "\n";
+    # old gas versions store upper and lower case names on .req,
+    # but they remove only one on .unreq
+    if ($fix_unreq) {
+        if ($line =~ /\.unreq\s+(.*)/) {
+            $line = ".unreq " . lc($1) . "\n";
+            print ASMFILE ".unreq " . uc($1) . "\n";
+        }
     }
 
     if ($line =~ /\.rept\s+(.*)/) {
