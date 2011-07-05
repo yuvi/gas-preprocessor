@@ -13,6 +13,16 @@ use strict;
 my @gcc_cmd = @ARGV;
 my @preprocess_c_cmd;
 
+my $fix_unreq = $^O eq "darwin";
+
+if ($gcc_cmd[0] eq "-fix-unreq") {
+    $fix_unreq = 1;
+    shift @gcc_cmd;
+} elsif ($gcc_cmd[0] eq "-no-fix-unreq") {
+    $fix_unreq = 0;
+    shift @gcc_cmd;
+}
+
 if (grep /\.c$/, @gcc_cmd) {
     # C file (inline asm?) - compile
     @preprocess_c_cmd = (@gcc_cmd, "-S");
@@ -21,6 +31,19 @@ if (grep /\.c$/, @gcc_cmd) {
     @preprocess_c_cmd = (@gcc_cmd, "-E");
 } else {
     die "Unrecognized input filetype";
+}
+
+# if compiling, avoid creating an output file named '-.o'
+if ((grep /^-c$/, @gcc_cmd) && !(grep /^-o/, @gcc_cmd)) {
+    foreach my $i (@gcc_cmd) {
+        if ($i =~ /\.[csS]$/) {
+            my $outputfile = $i;
+            $outputfile =~ s/\.[csS]$/.o/;
+            push(@gcc_cmd, "-o");
+            push(@gcc_cmd, $outputfile);
+            last;
+        }
+    }
 }
 @gcc_cmd = map { /\.[csS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
 @preprocess_c_cmd = map { /\.o$/ ? "-" : $_ } @preprocess_c_cmd;
@@ -87,6 +110,8 @@ while (<ASMFILE>) {
     s/\.ltorg/$comm.ltorg/x;
     s/\.size/$comm.size/x;
     s/\.fpu/$comm.fpu/x;
+    s/\.arch/$comm.arch/x;
+    s/\.object_arch/$comm.object_arch/x;
 
     # the syntax for these is a little different
     s/\.global/.globl/x;
@@ -101,6 +126,36 @@ while (<ASMFILE>) {
     }
 
     parse_line($_);
+}
+
+sub handle_if {
+    my $line = $_[0];
+    # handle .if directives; apple's assembler doesn't support important non-basic ones
+    # evaluating them is also needed to handle recursive macros
+    if ($line =~ /\.if(n?)([a-z]*)\s+(.*)/) {
+        my $result = $1 eq "n";
+        my $type   = $2;
+        my $expr   = $3;
+
+        if ($type eq "b") {
+            $expr =~ s/\s//g;
+            $result ^= $expr eq "";
+        } elsif ($type eq "c") {
+            if ($expr =~ /(.*)\s*,\s*(.*)/) {
+                $result ^= $1 eq $2;
+            } else {
+                die "argument to .ifc not recognized";
+            }
+        } elsif ($type eq "") {
+            $result ^= eval($expr) != 0;
+        } else {
+            die "unhandled .if varient";
+        }
+        push (@ifstack, $result);
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 sub parse_line {
@@ -121,11 +176,15 @@ sub parse_line {
         } elsif (/\.else/) {
             $ifstack[-1] = !$ifstack[-1];
             return;
+        } elsif (handle_if($line)) {
+            return;
         }
 
         # discard lines in false .if blocks
-        if ($ifstack[-1] <= 0) {
-            return;
+        foreach my $i (0 .. $#ifstack) {
+            if ($ifstack[$i] <= 0) {
+                return;
+            }
         }
     }
 
@@ -179,26 +238,7 @@ sub expand_macros {
 
     # handle .if directives; apple's assembler doesn't support important non-basic ones
     # evaluating them is also needed to handle recursive macros
-    if ($line =~ /\.if(n?)([a-z]*)\s+(.*)/) {
-        my $result = $1 eq "n";
-        my $type   = $2;
-        my $expr   = $3;
-
-        if ($type eq "b") {
-            $expr =~ s/\s//g;
-            $result ^= $expr eq "";
-        } elsif ($type eq "c") {
-            if ($expr =~ /(.*)\s*,\s*(.*)/) {
-                $result ^= $1 eq $2;
-            } else {
-                die "argument to .ifc not recognized";
-            }
-        } elsif ($type eq "") {
-            $result ^= eval($expr) != 0;
-        } else {
-            die "unhandled .if varient";
-        }
-        push (@ifstack, $result);
+    if (handle_if($line)) {
         return;
     }
 
@@ -289,6 +329,10 @@ my $rept_lines;
 my %literal_labels;     # for ldr <reg>, =<expr>
 my $literal_num = 0;
 
+my $in_irp = 0;
+my @irp_args;
+my $irp_param;
+
 # pass 2: parse .rept and .if variants
 # NOTE: since we don't implement a proper parser, using .rept with a
 # variable assigned from .set is not supported
@@ -333,6 +377,15 @@ foreach my $line (@pass1_lines) {
         }
     }
 
+    # old gas versions store upper and lower case names on .req,
+    # but they remove only one on .unreq
+    if ($fix_unreq) {
+        if ($line =~ /\.unreq\s+(.*)/) {
+            $line = ".unreq " . lc($1) . "\n";
+            print ASMFILE ".unreq " . uc($1) . "\n";
+        }
+    }
+
     if ($line =~ /\.rept\s+(.*)/) {
         $num_repts = $1;
         $rept_lines = "\n";
@@ -343,11 +396,33 @@ foreach my $line (@pass1_lines) {
             $rept_lines .= "$1\n";
         }
         $num_repts = eval($num_repts);
+    } elsif ($line =~ /\.irp\s+([\d\w\.]+)\s*(.*)/) {
+        $in_irp = 1;
+        $num_repts = 1;
+        $rept_lines = "\n";
+        $irp_param = $1;
+
+        # only use whitespace as the separator
+        my $irp_arglist = $2;
+        $irp_arglist =~ s/,/ /g;
+        $irp_arglist =~ s/^\s+//;
+        @irp_args = split(/\s+/, $irp_arglist);
     } elsif ($line =~ /\.endr/) {
-        for (1 .. $num_repts) {
-            print ASMFILE $rept_lines;
+        if ($in_irp != 0) {
+            foreach my $i (@irp_args) {
+                my $line = $rept_lines;
+                $line =~ s/\\$irp_param/$i/g;
+                $line =~ s/\\\(\)//g;     # remove \()
+                print ASMFILE $line;
+            }
+        } else {
+            for (1 .. $num_repts) {
+                print ASMFILE $rept_lines;
+            }
         }
         $rept_lines = '';
+        $in_irp = 0;
+        @irp_args = '';
     } elsif ($rept_lines) {
         $rept_lines .= $line;
     } else {
