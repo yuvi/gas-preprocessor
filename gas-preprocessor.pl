@@ -148,8 +148,13 @@ sub handle_if {
             }
         } elsif ($type eq "") {
             $result ^= eval($expr) != 0;
+        } elsif ($type eq "eq") {
+            $result = eval($expr) == 0;
+        } elsif ($type eq "lt") {
+            $result = eval($expr) < 0;
         } else {
-            die "unhandled .if varient";
+	    chomp($line);
+            die "unhandled .if varient. \"$line\"";
         }
         push (@ifstack, $result);
         return 1;
@@ -257,20 +262,32 @@ sub expand_macros {
         # parameters can be blank
         my @arglist = split(/,/, $3);
         my @args;
+        my @args_seperator;
+
+        my $comma_sep_required = 0;
         foreach (@arglist) {
             # allow for + and - in macro arguments
             $_ =~ s/\s*\+\s*/+/;
             $_ =~ s/\s*\-\s*/-/;
+
             my @whitespace_split = split(/\s+/, $_);
             if (!@whitespace_split) {
                 push(@args, '');
+                push(@args_seperator, '');
             } else {
                 foreach (@whitespace_split) {
+                        #print ("arglist = \"$_\"\n");
                     if (length($_)) {
                         push(@args, $_);
+                        my $sep = $comma_sep_required ? "," : " ";
+                        push(@args_seperator, $sep);
+                        #print ("sep = \"$sep\", arg = \"$_\"\n");
+                        $comma_sep_required = 0;
                     }
                 }
             }
+
+            $comma_sep_required = 1;
         }
 
         my %replacements;
@@ -281,7 +298,7 @@ sub expand_macros {
         # construct hashtable of text to replace
         foreach my $i (0 .. $#args) {
             my $argname = $macro_args{$macro}[$i];
-
+            my @macro_args = @{ $macro_args{$macro} };
             if ($args[$i] =~ m/=/) {
                 # arg=val references the argument name
                 # XXX: I'm not sure what the expected behaviour if a lot of
@@ -293,7 +310,9 @@ sub expand_macros {
                 # XXX: is vararg allowed on arguments before the last?
                 $argname = $macro_args{$macro}[-1];
                 if ($argname =~ s/:vararg$//) {
-                    $replacements{$argname} .= ", $args[$i]";
+                    #print "macro = $macro, args[$i] = $args[$i], args_seperator=@args_seperator, argname = $argname, arglist[$i] = $arglist[$i], arglist = @arglist, args=@args, macro_args=@macro_args\n";
+                    #$replacements{$argname} .= ", $args[$i]";
+                    $replacements{$argname} .= "$args_seperator[$i] $args[$i]";
                 } else {
                     die "Too many arguments to macro $macro";
                 }
@@ -321,6 +340,7 @@ sub expand_macros {
 
 close(ASMFILE) or exit 1;
 open(ASMFILE, "|-", @gcc_cmd) or die "Error running assembler";
+#open(ASMFILE, ">/tmp/a.S") or die "Error running assembler";
 
 my @sections;
 my $num_repts;
@@ -407,6 +427,16 @@ foreach my $line (@pass1_lines) {
         $irp_arglist =~ s/,/ /g;
         $irp_arglist =~ s/^\s+//;
         @irp_args = split(/\s+/, $irp_arglist);
+    } elsif ($line =~ /\.irpc\s+([\d\w\.]+)\s*(.*)/) {
+        $in_irp = 1;
+        $num_repts = 1;
+        $rept_lines = "\n";
+        $irp_param = $1;
+
+        my $irp_arglist = $2;
+        $irp_arglist =~ s/,/ /g;
+        $irp_arglist =~ s/^\s+//;
+        @irp_args = split(//, $irp_arglist);
     } elsif ($line =~ /\.endr/) {
         if ($in_irp != 0) {
             foreach my $i (@irp_args) {
@@ -436,3 +466,4 @@ foreach my $literal (keys %literal_labels) {
 }
 
 close(ASMFILE) or exit 1;
+#exit 1
