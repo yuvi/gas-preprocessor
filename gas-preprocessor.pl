@@ -223,7 +223,7 @@ sub parse_line {
     } elsif ($macro_level == 0) {
         expand_macros($line);
     } else {
-        if (/\.macro\s+([\d\w\.]+)\s*(.*)/) {
+        if ($line =~ /\.macro\s+([\d\w\.]+)\s*(.*)/) {
             $current_macro = $1;
 
             # commas in the argument list are optional, so only use whitespace as the separator
