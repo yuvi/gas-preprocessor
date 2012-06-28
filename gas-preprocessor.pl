@@ -279,9 +279,8 @@ sub expand_macros {
 
         my $comma_sep_required = 0;
         foreach (@arglist) {
-            # allow for + and - in macro arguments
-            $_ =~ s/\s*\+\s*/+/;
-            $_ =~ s/\s*\-\s*/-/;
+            # allow arithmetic/shift operators in macro arguments
+            $_ =~ s/\s*(\+|-|\*|\/|<<|>>)\s*/$1/g;
 
             my @whitespace_split = split(/\s+/, $_);
             if (!@whitespace_split) {
