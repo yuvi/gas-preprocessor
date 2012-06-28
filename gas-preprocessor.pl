@@ -93,6 +93,7 @@ my %macro_lines;
 my %macro_args;
 my %macro_args_default;
 my $macro_count = 0;
+my $altmacro = 0;
 
 my @pass1_lines;
 my @ifstack;
@@ -262,6 +263,18 @@ sub expand_macros {
         delete $macro_args_default{$1};
         return;
     }
+
+    if ($line =~ /\.altmacro/) {
+        $altmacro = 1;
+        return;
+    }
+
+    if ($line =~ /\.noaltmacro/) {
+        $altmacro = 0;
+        return;
+    }
+
+    $line =~ s/\%([^,]*)/eval_expr($1)/eg if $altmacro;
 
     if ($line =~ /\.set\s+(.*),\s*(.*)/) {
         $symbols{$1} = eval_expr($2);
