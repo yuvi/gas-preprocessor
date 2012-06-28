@@ -97,6 +97,8 @@ my $macro_count = 0;
 my @pass1_lines;
 my @ifstack;
 
+my %symbols;
+
 # pass 1: parse .macro
 # note that the handling of arguments is probably overly permissive vs. gas
 # but it should be the same for valid cases
@@ -129,6 +131,12 @@ while (<ASMFILE>) {
     parse_line($_);
 }
 
+sub eval_expr {
+    my $expr = $_[0];
+    $expr =~ s/([A-Za-z._][A-Za-z0-9._]*)/$symbols{$1}/g;
+    eval $expr;
+}
+
 sub handle_if {
     my $line = $_[0];
     # handle .if directives; apple's assembler doesn't support important non-basic ones
@@ -148,11 +156,11 @@ sub handle_if {
                 die "argument to .ifc not recognized";
             }
         } elsif ($type eq "") {
-            $result ^= eval($expr) != 0;
+            $result ^= eval_expr($expr) != 0;
         } elsif ($type eq "eq") {
-            $result = eval($expr) == 0;
+            $result = eval_expr($expr) == 0;
         } elsif ($type eq "lt") {
-            $result = eval($expr) < 0;
+            $result = eval_expr($expr) < 0;
         } else {
 	    chomp($line);
             die "unhandled .if varient. \"$line\"";
@@ -174,7 +182,7 @@ sub parse_line {
             return;
         } elsif ($line =~ /\.elseif\s+(.*)/) {
             if ($ifstack[-1] == 0) {
-                $ifstack[-1] = !!eval($1);
+                $ifstack[-1] = !!eval_expr($1);
             } elsif ($ifstack[-1] > 0) {
                 $ifstack[-1] = -$ifstack[-1];
             }
@@ -253,6 +261,10 @@ sub expand_macros {
         delete $macro_args{$1};
         delete $macro_args_default{$1};
         return;
+    }
+
+    if ($line =~ /\.set\s+(.*),\s*(.*)/) {
+        $symbols{$1} = eval_expr($2);
     }
 
     if ($line =~ /(\S+:|)\s*([\w\d\.]+)\s*(.*)/ && exists $macro_lines{$2}) {
