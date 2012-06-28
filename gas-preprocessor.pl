@@ -92,6 +92,7 @@ my $macro_level = 0;
 my %macro_lines;
 my %macro_args;
 my %macro_args_default;
+my $macro_count = 0;
 
 my @pass1_lines;
 my @ifstack;
@@ -101,7 +102,7 @@ my @ifstack;
 # but it should be the same for valid cases
 while (<ASMFILE>) {
     # remove all comments (to avoid interfering with evaluating directives)
-    s/$comm.*//x;
+    s/(?<!\\)$comm.*//x;
 
     # comment out unsupported directives
     s/\.type/$comm.type/x;
@@ -322,6 +323,8 @@ sub expand_macros {
             }
         }
 
+        my $count = $macro_count++;
+
         # apply replacements as regex
         foreach (@{$macro_lines{$macro}}) {
             my $macro_line = $_;
@@ -330,6 +333,7 @@ sub expand_macros {
             foreach (reverse sort {length $a <=> length $b} keys %replacements) {
                 $macro_line =~ s/\\$_/$replacements{$_}/g;
             }
+            $macro_line =~ s/\\\@/$count/g;
             $macro_line =~ s/\\\(\)//g;     # remove \()
             parse_line($macro_line);
         }
