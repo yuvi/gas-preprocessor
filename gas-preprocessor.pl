@@ -418,6 +418,11 @@ foreach my $line (@pass1_lines) {
         %literal_labels = ();
     }
 
+    # thumb add with large immediate needs explicit add.w
+    if ($thumb and $line =~ /add\s+.*#([^@]+)/) {
+        $line =~ s/add/add.w/ if eval_expr($1) > 255;
+    }
+
     # mach-o local symbol names start with L (no dot)
     $line =~ s/(?<!\w)\.(L\w+)/$1/g;
 
