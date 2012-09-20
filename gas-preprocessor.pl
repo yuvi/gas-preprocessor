@@ -406,6 +406,7 @@ foreach my $line (@pass1_lines) {
         }
         $line = "$1 ldr$2, $label\n";
     } elsif ($line =~ /\.ltorg/) {
+        $line .= ".align 2\n";
         foreach my $literal (keys %literal_labels) {
             $line .= "$literal_labels{$literal}:\n .word $literal\n";
         }
@@ -489,6 +490,7 @@ foreach my $line (@pass1_lines) {
 }
 
 print ASMFILE ".text\n";
+print ASMFILE ".align 2\n";
 foreach my $literal (keys %literal_labels) {
     print ASMFILE "$literal_labels{$literal}:\n .word $literal\n";
 }
