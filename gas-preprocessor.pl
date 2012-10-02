@@ -377,6 +377,8 @@ my $rept_lines;
 my %literal_labels;     # for ldr <reg>, =<expr>
 my $literal_num = 0;
 
+my $thumb = 0;
+
 my $in_irp = 0;
 my @irp_args;
 my $irp_param;
@@ -395,6 +397,9 @@ foreach my $line (@pass1_lines) {
         $line = $sections[-2];
         push(@sections, $line);
     }
+
+    $thumb = 1 if $line =~ /\.code\s+16|\.thumb/;
+    $thumb = 0 if $line =~ /\.code\s+32|\.arm/;
 
     # handle ldr <reg>, =<expr>
     if ($line =~ /(.*)\s*ldr([\w\s\d]+)\s*,\s*=(.*)/) {
