@@ -400,7 +400,7 @@ foreach my $line (@pass1_lines) {
     if ($line =~ /(.*)\s*ldr([\w\s\d]+)\s*,\s*=(.*)/) {
         my $label = $literal_labels{$3};
         if (!$label) {
-            $label = ".Literal_$literal_num";
+            $label = "Literal_$literal_num";
             $literal_num++;
             $literal_labels{$3} = $label;
         }
@@ -412,6 +412,9 @@ foreach my $line (@pass1_lines) {
         }
         %literal_labels = ();
     }
+
+    # mach-o local symbol names start with L (no dot)
+    $line =~ s/(?<!\w)\.(L\w+)/$1/g;
 
     # @l -> lo16()  @ha -> ha16()
     $line =~ s/,\s+([^,]+)\@l\b/, lo16($1)/g;
