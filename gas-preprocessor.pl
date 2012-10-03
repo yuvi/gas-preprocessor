@@ -377,6 +377,11 @@ my $rept_lines;
 my %literal_labels;     # for ldr <reg>, =<expr>
 my $literal_num = 0;
 
+my $thumb = 0;
+
+my %thumb_labels;
+my %call_targets;
+
 my $in_irp = 0;
 my @irp_args;
 my $irp_param;
@@ -396,20 +401,40 @@ foreach my $line (@pass1_lines) {
         push(@sections, $line);
     }
 
+    $thumb = 1 if $line =~ /\.code\s+16|\.thumb/;
+    $thumb = 0 if $line =~ /\.code\s+32|\.arm/;
+
     # handle ldr <reg>, =<expr>
     if ($line =~ /(.*)\s*ldr([\w\s\d]+)\s*,\s*=(.*)/) {
         my $label = $literal_labels{$3};
         if (!$label) {
-            $label = ".Literal_$literal_num";
+            $label = "Literal_$literal_num";
             $literal_num++;
             $literal_labels{$3} = $label;
         }
         $line = "$1 ldr$2, $label\n";
     } elsif ($line =~ /\.ltorg/) {
+        $line .= ".align 2\n";
         foreach my $literal (keys %literal_labels) {
             $line .= "$literal_labels{$literal}:\n .word $literal\n";
         }
         %literal_labels = ();
+    }
+
+    # thumb add with large immediate needs explicit add.w
+    if ($thumb and $line =~ /add\s+.*#([^@]+)/) {
+        $line =~ s/add/add.w/ if eval_expr($1) > 255;
+    }
+
+    # mach-o local symbol names start with L (no dot)
+    $line =~ s/(?<!\w)\.(L\w+)/$1/g;
+
+    if ($thumb and $line =~ /^\s*(\w+)\s*:/) {
+        $thumb_labels{$1}++;
+    }
+
+    if ($line =~ /^\s*((\w+:)?blx?|\.globl)\s+(\w+)/) {
+        $call_targets{$3}++;
     }
 
     # @l -> lo16()  @ha -> ha16()
@@ -489,9 +514,13 @@ foreach my $line (@pass1_lines) {
 }
 
 print ASMFILE ".text\n";
+print ASMFILE ".align 2\n";
 foreach my $literal (keys %literal_labels) {
     print ASMFILE "$literal_labels{$literal}:\n .word $literal\n";
 }
+
+map print(ASMFILE ".thumb_func $_\n"),
+    grep exists $thumb_labels{$_}, keys %call_targets;
 
 close(ASMFILE) or exit 1;
 #exit 1
