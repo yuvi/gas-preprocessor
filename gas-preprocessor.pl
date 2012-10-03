@@ -367,8 +367,11 @@ sub expand_macros {
 }
 
 close(ASMFILE) or exit 1;
-open(ASMFILE, "|-", @gcc_cmd) or die "Error running assembler";
-#open(ASMFILE, ">/tmp/a.S") or die "Error running assembler";
+if ($ENV{GASPP_DEBUG}) {
+    open(ASMFILE, ">&STDOUT");
+} else {
+    open(ASMFILE, "|-", @gcc_cmd) or die "Error running assembler";
+}
 
 my @sections;
 my $num_repts;
