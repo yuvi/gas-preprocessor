@@ -523,7 +523,9 @@ foreach my $line (@pass1_lines) {
 print ASMFILE ".text\n";
 print ASMFILE ".align 2\n";
 foreach my $literal (keys %literal_labels) {
-    print ASMFILE "$literal_labels{$literal}:\n .word $literal\n";
+    my $label = $literal_labels{$literal};
+    print ASMFILE ".set Lval_$label, $literal\n";
+    print ASMFILE "$label: .word Lval_$label\n";
 }
 
 map print(ASMFILE ".thumb_func $_\n"),
