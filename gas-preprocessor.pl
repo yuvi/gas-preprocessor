@@ -436,8 +436,12 @@ foreach my $line (@pass1_lines) {
         $thumb_labels{$1}++;
     }
 
-    if ($line =~ /^\s*((\w+:)?blx?|\.globl)\s+(\w+)/) {
-        $call_targets{$3}++;
+    if ($line =~ /^\s*((\w+\s*:\s*)?bl?x?(?:..)?(?:\.w)?|\.globl)\s+(\w+)/) {
+        if (exists $thumb_labels{$3}) {
+            print ASMFILE ".thumb_func $3\n";
+        } else {
+            $call_targets{$3}++;
+        }
     }
 
     # @l -> lo16()  @ha -> ha16()
