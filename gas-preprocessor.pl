@@ -48,6 +48,22 @@ if ((grep /^-c$/, @gcc_cmd) && !(grep /^-o/, @gcc_cmd)) {
 @gcc_cmd = map { /\.[csS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
 @preprocess_c_cmd = map { /\.o$/ ? "-" : $_ } @preprocess_c_cmd;
 
+# if creating dependency file as side effect, avoid creating an output file named '-.d'
+if ((grep /^-MM?D/, @preprocess_c_cmd) && !(grep /^-MF$/, @preprocess_c_cmd)) {
+    foreach my $i (@preprocess_c_cmd) {
+        if ($i =~ /\.[csS]$/) {
+            my $outputfile = $i;
+            $outputfile =~ s/\.[csS]$/.o/;
+            push(@preprocess_c_cmd, "-MT");
+            push(@preprocess_c_cmd, $outputfile);
+            $outputfile =~ s/\.o$/.d/;
+            push(@preprocess_c_cmd, "-MF");
+            push(@preprocess_c_cmd, $outputfile);
+            last;
+        }
+    }
+}
+
 my $comm;
 
 # detect architecture from gcc binary name
