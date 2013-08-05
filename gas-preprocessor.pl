@@ -356,6 +356,7 @@ sub expand_macros {
             # when argument names are subsets of each other
             foreach (reverse sort {length $a <=> length $b} keys %replacements) {
                 $macro_line =~ s/\\$_/$replacements{$_}/g;
+                $macro_line =~ s/\\ $_/$replacements{$_}/g;
             }
             $macro_line =~ s/\\\@/$count/g;
             $macro_line =~ s/\\\(\)//g;     # remove \()
